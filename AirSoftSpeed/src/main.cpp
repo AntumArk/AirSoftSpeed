@@ -37,25 +37,35 @@ constexpr int led2Pin=12;
 volatile unsigned long led1Micros=0;
 volatile unsigned long led2Micros=0;
 volatile float speed=15.2; //m/s
-constexpr float LED_DISTANCE=0.0358;// m
-constexpr int MICROSTOSECONDS=1000000;
+constexpr float LED_DISTANCE=35.8;// mm
+constexpr float MICROSTOSECONDS=1000000;
+constexpr float SPEEDCONST=0.001; //to m/s
 
-void setUpInterrupts(){
-  attachInterrupt(digitalPinToInterrupt(led1Pin), led1Interrupt, RISING);
-  attachInterrupt(digitalPinToInterrupt(led2Pin), led2Interrupt, RISING);
-}
+
 float getSpeed(float micros1, float micros2){  
-  float dt=micros2-micros1;
+  unsigned long dt=0;
+  if (micros1>micros2)
+  {
+  dt=(micros1-micros2);
+  }
+  else  dt=(micros2-micros1);
   if(dt==0)
     return 0;
   float seconds=dt/MICROSTOSECONDS;
-  return abs(LED_DISTANCE/seconds);
+  Serial.println(seconds);
+  Serial.println(micros2);
+  Serial.println(micros1);
+  return (LED_DISTANCE/float(dt))*SPEEDCONST;//abs(LED_DISTANCE/seconds);
 }
-void led1Interrupt(){
+IRAM_ATTR   void led1Interrupt(){
   led1Micros=micros();
 }
-void led2Interrupt(){
+IRAM_ATTR   void led2Interrupt(){
   led2Micros=micros();
+}
+void setUpInterrupts(){
+  attachInterrupt(digitalPinToInterrupt(led1Pin), led1Interrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(led2Pin), led2Interrupt, FALLING);
 }
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -183,7 +193,11 @@ void testdrawstyles(void) {
 
 
 void setup() {
+
   Serial.begin(9600);
+  delay(2000);
+  Serial.println("Attaching interrupts");
+  setUpInterrupts();
    WiFi.mode(WIFI_OFF);
    if (WiFi.getMode() == WIFI_OFF)
       Serial.println(F("\nWifi mode is WIFI_OFF, until it is explicitly changed"));
@@ -252,7 +266,7 @@ void setup() {
   // drawing operations and then update the screen all at once by calling
   // display.display(). These examples demonstrate both approaches...
 
-  // testdrawline();      // Draw many lines
+  //testdrawline();      // Draw many lines
 
   // testdrawrect();      // Draw rectangles (outlines)
 
@@ -268,8 +282,8 @@ void loop() {
   display.setTextColor(SSD1306_WHITE);
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,0);             // Start at top-left corner
-  char buf2[32];
-  snprintf(buf2, 32, "Speed:\r\n %4.2f m/s", speed);
+  char buf2[50];
+  snprintf(buf2, 50, "Speed: \r\n %4.4f m/s", speed);
   display.println(buf2);
     display.display();
   delay(1000);
