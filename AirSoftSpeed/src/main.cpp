@@ -31,9 +31,20 @@
 #include <Adafruit_SSD1306.h>
 #include <ESP8266WiFi.h>
 
-long led1Micros=0;
-long led2Micros=0;
-float speed=15.2;
+volatile long led1Micros=0;
+volatile long led2Micros=0;
+volatile float speed=15.2; //m/s
+constexpr float LED_DISTANCE=0.0358;// m
+constexpr int MICROSTOSECONDS=1000000;
+
+float getSpeed(float micros1, float micros2){  
+  float dt=micros2-micros1;
+  if(dt==0)
+    return 0;
+  float seconds=dt/MICROSTOSECONDS;
+  return LED_DISTANCE/seconds;
+}
+
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
