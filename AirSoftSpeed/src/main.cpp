@@ -262,6 +262,7 @@ void setup() {
 }
 
 void loop() {
+  speed = getSpeed(led1Micros,led2Micros);
   display.clearDisplay();
   display.setTextSize(2);             // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
@@ -271,5 +272,5 @@ void loop() {
   snprintf(buf2, 32, "Speed:\r\n %4.2f m/s", speed);
   display.println(buf2);
     display.display();
-  delay(2000);
+  delay(1000);
 }
