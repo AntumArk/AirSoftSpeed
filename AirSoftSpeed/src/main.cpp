@@ -42,7 +42,7 @@ float getSpeed(float micros1, float micros2){
   if(dt==0)
     return 0;
   float seconds=dt/MICROSTOSECONDS;
-  return LED_DISTANCE/seconds;
+  return abs(LED_DISTANCE/seconds);
 }
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
