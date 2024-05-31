@@ -31,12 +31,19 @@
 #include <Adafruit_SSD1306.h>
 #include <ESP8266WiFi.h>
 
-volatile long led1Micros=0;
-volatile long led2Micros=0;
+constexpr int led1Pin=4;
+constexpr int led2Pin=12;
+
+volatile unsigned long led1Micros=0;
+volatile unsigned long led2Micros=0;
 volatile float speed=15.2; //m/s
 constexpr float LED_DISTANCE=0.0358;// m
 constexpr int MICROSTOSECONDS=1000000;
 
+void setUpInterrupts(){
+  attachInterrupt(digitalPinToInterrupt(led1Pin), led1Interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(led2Pin), led2Interrupt, RISING);
+}
 float getSpeed(float micros1, float micros2){  
   float dt=micros2-micros1;
   if(dt==0)
@@ -44,7 +51,12 @@ float getSpeed(float micros1, float micros2){
   float seconds=dt/MICROSTOSECONDS;
   return abs(LED_DISTANCE/seconds);
 }
-
+void led1Interrupt(){
+  led1Micros=micros();
+}
+void led2Interrupt(){
+  led2Micros=micros();
+}
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
