@@ -1,29 +1,4 @@
 #include <Arduino.h>
-/*
-  modified on Sep 28, 2020
-  Modified by MohammedDamirchi from https://github.com/adafruit/Adafruit_SSD1306
-  Home
-*/
-
-/**************************************************************************
- This is an example for our Monochrome OLEDs based on SSD1306 drivers
-
- Pick one up today in the adafruit shop!
- ------> http://www.adafruit.com/category/63_98
-
- This example is for a 128x32 pixel display using I2C to communicate
- 3 pins are required to interface (two I2C and one reset).
-
- Adafruit invests time and resources providing this open
- source code, please support Adafruit and open-source
- hardware by purchasing products from Adafruit!
-
- Written by Limor Fried/Ladyada for Adafruit Industries,
- with contributions from the open source community.
- BSD license, check license.txt for more information
- All text above, and the splash screen below must be
- included in any redistribution.
- **************************************************************************/
 
 #include <SPI.h>
 #include <Wire.h>
@@ -31,41 +6,49 @@
 #include <Adafruit_SSD1306.h>
 #include <ESP8266WiFi.h>
 
-constexpr int led1Pin=4;
-constexpr int led2Pin=12;
+constexpr int ledPin=12;
 
-volatile unsigned long led1Micros=0;
-volatile unsigned long led2Micros=0;
-volatile float speed=15.2; //m/s
-constexpr float LED_DISTANCE=35.8;// mm
-constexpr float MICROSTOSECONDS=1000000;
-constexpr float SPEEDCONST=0.001; //to m/s
+volatile uint64_t prevTime=0; //us
+volatile uint64_t delta=0; //us
+volatile double speed=15.2; //m/s
+constexpr double LED_DISTANCE = 0.068169; // m
+constexpr double MICROSECONDS_TO_SECONDS = 1e-6;
+volatile uint64_t debounceTime = 200; // Debounce time in microseconds
+double getSpeed(uint64_t dt);
+double getSpeed(uint64_t dt) {  
+  Serial.println("SPEED CALCULATION STARTED");
+  if(dt == 0)
+    {
+      return -1.0000002;
+      }
+    
+  Serial.println("c1");
+  Serial.println(LED_DISTANCE,10);
+  Serial.println("c2");
+  Serial.println(static_cast<double>(dt),10);
+  Serial.println("c3");
+  Serial.println((LED_DISTANCE / static_cast<double>(dt)),10);
+  Serial.println("c4");
+  Serial.println((LED_DISTANCE / static_cast<double>(dt)) / MICROSECONDS_TO_SECONDS,10);
 
 
-float getSpeed(float micros1, float micros2){  
-  unsigned long dt=0;
-  if (micros1>micros2)
-  {
-  dt=(micros1-micros2);
-  }
-  else  dt=(micros2-micros1);
-  if(dt==0)
-    return 0;
-  float seconds=dt/MICROSTOSECONDS;
-  Serial.println(seconds);
-  Serial.println(micros2);
-  Serial.println(micros1);
-  return (LED_DISTANCE/float(dt))*SPEEDCONST;//abs(LED_DISTANCE/seconds);
+  return (LED_DISTANCE / static_cast<double>(dt)) / MICROSECONDS_TO_SECONDS;
+  // return (LED_DISTANCE / static_cast<double>(dt)) * MICROSECONDS_TO_SECONDS;
 }
-IRAM_ATTR   void led1Interrupt(){
-  led1Micros=micros();
+IRAM_ATTR   void ledInterrupt(){
+   static uint64_t lastInterruptTime = 0;
+  uint64_t currentTime = micros64();
+
+// If interrupts come faster than the debounce time, ignore them
+if (currentTime - lastInterruptTime > debounceTime) {
+  delta = (prevTime > currentTime) ? (prevTime - currentTime) : (currentTime - prevTime);
+  prevTime = currentTime;
 }
-IRAM_ATTR   void led2Interrupt(){
-  led2Micros=micros();
+
+lastInterruptTime = currentTime;
 }
 void setUpInterrupts(){
-  attachInterrupt(digitalPinToInterrupt(led1Pin), led1Interrupt, FALLING);
-  attachInterrupt(digitalPinToInterrupt(led2Pin), led2Interrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ledPin), ledInterrupt, FALLING);
 }
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -190,7 +173,10 @@ void testdrawstyles(void) {
 }
 
 
-
+double calculateKineticEnergy(double massInGrams, double velocityInMetersPerSecond) {
+  double massInKilograms = massInGrams / 1000.0;
+  return 0.5 * massInKilograms * pow(velocityInMetersPerSecond, 2);
+}
 
 void setup() {
 
@@ -239,7 +225,6 @@ void setup() {
   else
     Serial.println("done\n");
 
-  delay(5000);           // wait 5 seconds for next scan
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C,true,false)) { // Address 0x3C for 128x32
     Serial.println(F("SSD1306 allocation failed"));
@@ -249,41 +234,25 @@ void setup() {
   // Show initial display buffer contents on the screen --
   // the library initializes this with an Adafruit splash screen.
   display.display();
-  delay(2000); // Pause for 2 seconds
+  delay(100); // Pause for 2 seconds
 
   // Clear the buffer
   display.clearDisplay();
 
-  // Draw a single pixel in white
-  display.drawPixel(10, 10, SSD1306_WHITE);
-
-  // Show the display buffer on the screen. You MUST call display() after
-  // drawing commands to make them visible on screen!
-  display.display();
-  delay(2000);
-  // display.display() is NOT necessary after every single drawing command,
-  // unless that's what you want...rather, you can batch up a bunch of
-  // drawing operations and then update the screen all at once by calling
-  // display.display(). These examples demonstrate both approaches...
-
-  //testdrawline();      // Draw many lines
-
-  // testdrawrect();      // Draw rectangles (outlines)
-
-  // testdrawstyles();    // Draw 'stylized' characters
-
-
 }
 
 void loop() {
-  speed = getSpeed(led1Micros,led2Micros);
+  Serial.println("Loop started");
+  speed = getSpeed(delta);
   display.clearDisplay();
-  display.setTextSize(2);             // Draw 2X-scale text
+  display.setTextSize(1);             // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
   display.setTextColor(SSD1306_WHITE);        // Draw white text
   display.setCursor(0,0);             // Start at top-left corner
-  char buf2[50];
-  snprintf(buf2, 50, "Speed: \r\n %4.4f m/s", speed);
+  char buf2[80];
+  snprintf(buf2, 80, "Speed: %3.2f m/s\r\nDelta: %llu us\r\n0.2g %3.2f \r\n0.3g %3.2f",speed, delta,calculateKineticEnergy(0.2, speed),calculateKineticEnergy(0.3, speed));
+  Serial.println(speed,10);
+  Serial.println(delta);
   display.println(buf2);
     display.display();
   delay(1000);
